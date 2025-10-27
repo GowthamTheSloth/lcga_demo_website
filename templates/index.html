@@ -1,0 +1,216 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LCGA Demo - Life-Cycle Genetic Algorithm</title>
+  <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Life-Cycle GA (LCGA) — Interactive Demo</h1>
+      <p class="subtitle">Compare traditional Genetic Algorithm with Life-Cycle Genetic Algorithm on benchmark functions</p>
+    </header>
+    
+    <div class="controls">
+      <div class="control-group">
+        <label for="func">Benchmark Function:</label>
+        <select id="func">
+          {% for f in functions %}
+            <option value="{{f}}" {% if f == "Rastrigin" %}selected{% endif %}>{{f}}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label for="dim">Dimension:</label>
+        <input id="dim" type="number" value="10" min="2" max="50" title="Problem dimension (2-50)">
+      </div>
+      
+      <div class="control-group">
+        <label for="pop">Population Size:</label>
+        <input id="pop" type="number" value="60" min="10" max="500" title="Population size (10-500)">
+      </div>
+      
+      <div class="control-group">
+        <label for="gens">Generations:</label>
+        <input id="gens" type="number" value="80" min="5" max="500" title="Number of generations (5-500)">
+      </div>
+      
+      <button id="runBtn" class="run-button">
+        <span class="button-text">Run Comparison</span>
+        <span class="button-spinner" style="display: none;">⏳</span>
+      </button>
+      
+      <div id="status" class="status"></div>
+    </div>
+
+    <div id="error" class="error-message" style="display: none;"></div>
+
+    <div id="summary" class="summary" style="display:none;">
+      <h3>Results Summary</h3>
+      <div class="summary-content">
+        <table id="summaryTable">
+          <thead>
+            <tr><th>Algorithm</th><th>Best Fitness</th><th>Time (s)</th><th>Performance</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="improve" class="improvement"></div>
+      </div>
+    </div>
+
+    <div class="plot-container">
+      <div id="plot"></div>
+    </div>
+    
+    <div id="raw" class="raw-data"></div>
+  </div>
+
+<script>
+document.getElementById("runBtn").onclick = async function(){
+  const func = document.getElementById("func").value;
+  const dim = Number(document.getElementById("dim").value);
+  const pop = Number(document.getElementById("pop").value);
+  const gens = Number(document.getElementById("gens").value);
+  
+  // Validate inputs
+  if (dim < 2 || dim > 50) {
+    showError("Dimension must be between 2 and 50");
+    return;
+  }
+  if (pop < 10 || pop > 500) {
+    showError("Population size must be between 10 and 500");
+    return;
+  }
+  if (gens < 5 || gens > 500) {
+    showError("Generations must be between 5 and 500");
+    return;
+  }
+  
+  // UI state
+  const runBtn = document.getElementById("runBtn");
+  const buttonText = runBtn.querySelector(".button-text");
+  const buttonSpinner = runBtn.querySelector(".button-spinner");
+  
+  buttonText.style.display = "none";
+  buttonSpinner.style.display = "inline";
+  runBtn.disabled = true;
+  
+  document.getElementById("status").innerText = "Running algorithms... (this may take a few seconds)";
+  document.getElementById("summary").style.display = "none";
+  document.getElementById("error").style.display = "none";
+
+  try {
+    const resp = await fetch("/run", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({function: func, dim: dim, pop_size: pop, generations: gens})
+    });
+    
+    const data = await resp.json();
+    
+    if (!resp.ok) {
+      throw new Error(data.error || "Server error");
+    }
+    
+    document.getElementById("status").innerText = "Done!";
+    
+    // Show summary
+    document.getElementById("summary").style.display = "block";
+    const tbl = document.getElementById("summaryTable").querySelector("tbody");
+    tbl.innerHTML = "";
+    
+    const gaRow = tbl.insertRow();
+    gaRow.insertCell().innerText = "GA";
+    gaRow.insertCell().innerText = data.ga_best.toFixed(6);
+    gaRow.insertCell().innerText = data.ga_time_sec;
+    gaRow.insertCell().innerText = "Baseline";
+    
+    const lcgaRow = tbl.insertRow();
+    lcgaRow.insertCell().innerText = "LCGA";
+    lcgaRow.insertCell().innerText = data.lcga_best.toFixed(6);
+    lcgaRow.insertCell().innerText = data.lcga_time_sec;
+    
+    const improvementText = data.improvement_percent === null ? "N/A" : 
+      (data.improvement_percent > 0 ? "+" + data.improvement_percent + "%" : data.improvement_percent + "%");
+    lcgaRow.insertCell().innerText = improvementText;
+    
+    const improvementMsg = data.improvement_percent === null ? 
+      "Improvement: Cannot calculate" : 
+      `Improvement: ${data.improvement_percent > 0 ? '+' : ''}${data.improvement_percent}%`;
+    document.getElementById("improve").innerText = improvementMsg;
+
+    // Plot histories
+    const ga_y = data.ga_history;
+    const lcga_y = data.lcga_history;
+    const x = Array.from({length: ga_y.length}, (_,i)=>i+1);
+    
+    const trace1 = { 
+      x: x, 
+      y: ga_y, 
+      name: 'GA (best)', 
+      mode: 'lines+markers',
+      line: {color: '#1f77b4', width: 2},
+      marker: {size: 4}
+    };
+    const trace2 = { 
+      x: x, 
+      y: lcga_y, 
+      name: 'LCGA (best)', 
+      mode: 'lines+markers',
+      line: {color: '#ff7f0e', width: 2},
+      marker: {size: 4}
+    };
+    
+    const layout = { 
+      title: `${func} Function — Best Fitness per Generation`,
+      xaxis: {title: 'Generation'},
+      yaxis: {title: 'Best Fitness', rangemode: 'tozero'},
+      margin: {l: 60, r: 30, t: 60, b: 50},
+      legend: {x: 0.02, y: 0.98},
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+    
+    Plotly.newPlot('plot', [trace1, trace2], layout, {responsive: true});
+    
+    // Show raw data
+    document.getElementById("raw").innerText = JSON.stringify(data, null, 2);
+    
+  } catch (error) {
+    showError("Error: " + error.message);
+    document.getElementById("status").innerText = "Error occurred";
+  } finally {
+    // Reset button state
+    buttonText.style.display = "inline";
+    buttonSpinner.style.display = "none";
+    runBtn.disabled = false;
+  }
+};
+
+function showError(message) {
+  const errorDiv = document.getElementById("error");
+  errorDiv.innerText = message;
+  errorDiv.style.display = "block";
+}
+
+// Add some interactivity
+document.addEventListener('DOMContentLoaded', function() {
+  // Add tooltips or help text
+  const inputs = document.querySelectorAll('input[type="number"]');
+  inputs.forEach(input => {
+    input.addEventListener('focus', function() {
+      this.style.borderColor = '#2b8aef';
+    });
+    input.addEventListener('blur', function() {
+      this.style.borderColor = '#ccc';
+    });
+  });
+});
+</script>
+</body>
+</html>

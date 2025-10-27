@@ -1,0 +1,9 @@
+# Render deployment configuration
+build:
+  os: ubuntu
+  commands:
+    - pip install -r requirements.txt
+
+deploy:
+  startCommand: python app.py
+
