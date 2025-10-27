@@ -72,6 +72,11 @@
       <div id="plot"></div>
     </div>
     
+    <div class="plot-container">
+      <h3>LCGA Population Dynamics</h3>
+      <div id="dynamics-plot"></div>
+    </div>
+    
     <div id="raw" class="raw-data"></div>
   </div>
 
@@ -223,6 +228,51 @@ document.getElementById("runBtn").onclick = async function(){
     };
     
     Plotly.newPlot('plot', [trace1, trace2], layout, {responsive: true});
+    
+    // Create LCGA dynamics plot (diversity and age)
+    if (data.lcga_diversity_history && data.lcga_age_history) {
+      const diversityTrace = {
+        x: x,
+        y: data.lcga_diversity_history,
+        name: 'Population Diversity',
+        mode: 'lines+markers',
+        line: {color: '#e74c3c', width: 2},
+        marker: {size: 4},
+        yaxis: 'y'
+      };
+      
+      const ageTrace = {
+        x: x,
+        y: data.lcga_age_history,
+        name: 'Mean Age',
+        mode: 'lines+markers',
+        line: {color: '#9b59b6', width: 2},
+        marker: {size: 4},
+        yaxis: 'y2'
+      };
+      
+      const dynamicsLayout = {
+        title: 'LCGA Population Dynamics Over Generations',
+        xaxis: {title: 'Generation'},
+        yaxis: {
+          title: 'Population Diversity (Fitness Std Dev)',
+          side: 'left',
+          color: '#e74c3c'
+        },
+        yaxis2: {
+          title: 'Mean Age',
+          side: 'right',
+          overlaying: 'y',
+          color: '#9b59b6'
+        },
+        margin: {l: 60, r: 60, t: 60, b: 50},
+        legend: {x: 0.02, y: 0.98},
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+      };
+      
+      Plotly.newPlot('dynamics-plot', [diversityTrace, ageTrace], dynamicsLayout, {responsive: true});
+    }
     
     // Show raw data
     document.getElementById("raw").innerText = JSON.stringify(data, null, 2);

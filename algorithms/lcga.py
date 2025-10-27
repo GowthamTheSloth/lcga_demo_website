@@ -31,6 +31,10 @@ class LCGA:
         random.seed(seed)
         np.random.seed(seed)
         self.population = self._init_population()
+        
+        # Track diversity and age history
+        self.diversity_history = []
+        self.age_history = []
 
     def _init_population(self):
         pop = []
@@ -64,6 +68,22 @@ class LCGA:
                 ind.chrom[i] += np.random.normal(0, 0.2)
                 ind.chrom[i] = np.clip(ind.chrom[i], self.bounds[0], self.bounds[1])
         return ind
+    
+    def _calculate_diversity(self):
+        """Calculate population diversity as standard deviation of fitness values"""
+        if len(self.population) < 2:
+            return 0.0
+        fitness_values = [ind.fitness for ind in self.population if ind.fitness is not None]
+        if len(fitness_values) < 2:
+            return 0.0
+        return float(np.std(fitness_values))
+    
+    def _calculate_mean_age(self):
+        """Calculate mean age of population"""
+        if not self.population:
+            return 0.0
+        ages = [ind.age for ind in self.population]
+        return float(np.mean(ages))
 
     def run(self):
         best_history = []
@@ -115,6 +135,16 @@ class LCGA:
                 if ind.fitness is None:
                     self._evaluate(ind)
 
+            # Calculate and store diversity and mean age
+            diversity = self._calculate_diversity()
+            mean_age = self._calculate_mean_age()
+            self.diversity_history.append(diversity)
+            self.age_history.append(mean_age)
+            
+            # Print every 10 generations
+            if (step + 1) % 10 == 0:
+                print(f"Gen {step + 1}: mean_age={mean_age:.2f}, diversity={diversity:.4f}")
+
             # Record best
             best = min(self.population, key=lambda ind: ind.fitness)
             best_history.append(float(best.fitness))
@@ -122,4 +152,6 @@ class LCGA:
         best = min(self.population, key=lambda ind: ind.fitness)
         return {"best_fitness": float(best.fitness),
                 "best_chrom": best.chrom.tolist(),
-                "history": best_history}
+                "history": best_history,
+                "diversity_history": self.diversity_history,
+                "age_history": self.age_history}
