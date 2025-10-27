@@ -124,43 +124,20 @@ document.getElementById("runBtn").onclick = async function(){
     
     document.getElementById("status").innerText = "Done!";
     
-    // Show summary
-    document.getElementById("summary").style.display = "block";
-    const tbl = document.getElementById("summaryTable").querySelector("tbody");
-    tbl.innerHTML = "";
-    
-    const gaRow = tbl.insertRow();
-    gaRow.insertCell().innerText = "GA";
-    gaRow.insertCell().innerText = data.ga_best.toFixed(6);
-    gaRow.insertCell().innerText = data.ga_time_sec;
-    gaRow.insertCell().innerText = `${gaConvergence || 'N/A'} gens`;
-    
-    const lcgaRow = tbl.insertRow();
-    lcgaRow.insertCell().innerText = "LCGA";
-    lcgaRow.insertCell().innerText = data.lcga_best.toFixed(6);
-    lcgaRow.insertCell().innerText = data.lcga_time_sec;
-    lcgaRow.insertCell().innerText = `${lcgaConvergence || 'N/A'} gens`;
-    
-    const improvementText = data.improvement_percent === null ? "N/A" : 
-      (data.improvement_percent > 0 ? "+" + data.improvement_percent + "%" : data.improvement_percent + "%");
-    
-    const improvementMsg = data.improvement_percent === null ? 
-      "Improvement: Cannot calculate" : 
-      `Improvement: ${data.improvement_percent > 0 ? '+' : ''}${data.improvement_percent}%`;
-    
-    // Add convergence analysis
-    let convergenceAnalysis = "";
-    if (gaConvergence && lcgaConvergence) {
-      const convergenceImprovement = ((gaConvergence - lcgaConvergence) / gaConvergence * 100).toFixed(1);
-      convergenceAnalysis = `<br>Convergence Speed: LCGA reached target ${convergenceImprovement}% faster than GA`;
-    }
-    
-    document.getElementById("improve").innerHTML = improvementMsg + convergenceAnalysis;
-
     // Plot histories
     const ga_y = data.ga_history;
     const lcga_y = data.lcga_history;
     const x = Array.from({length: ga_y.length}, (_,i)=>i+1);
+    
+    // Calculate convergence metrics FIRST
+    const bestFitness = Math.min(...ga_y, ...lcga_y);
+    const targetFitness = bestFitness * 1.1; // 10% above best
+    const gaConvergence = ga_y.findIndex(f => f <= targetFitness);
+    const lcgaConvergence = lcga_y.findIndex(f => f <= targetFitness);
+    
+    // Convert to 1-based indexing and handle cases where target isn't reached
+    const gaConvergenceGens = gaConvergence >= 0 ? gaConvergence + 1 : 'N/A';
+    const lcgaConvergenceGens = lcgaConvergence >= 0 ? lcgaConvergence + 1 : 'N/A';
     
     const trace1 = { 
       x: x, 
@@ -179,13 +156,41 @@ document.getElementById("runBtn").onclick = async function(){
       marker: {size: 4}
     };
     
-    // Calculate convergence metrics
-    const targetFitness = Math.min(...ga_y, ...lcga_y) * 1.1; // 10% above best
-    const gaConvergence = ga_y.findIndex(f => f <= targetFitness) + 1;
-    const lcgaConvergence = lcga_y.findIndex(f => f <= targetFitness) + 1;
+    // Show summary
+    document.getElementById("summary").style.display = "block";
+    const tbl = document.getElementById("summaryTable").querySelector("tbody");
+    tbl.innerHTML = "";
+    
+    const gaRow = tbl.insertRow();
+    gaRow.insertCell().innerText = "GA";
+    gaRow.insertCell().innerText = data.ga_best.toFixed(6);
+    gaRow.insertCell().innerText = data.ga_time_sec;
+    gaRow.insertCell().innerText = `${gaConvergenceGens} gens`;
+    
+    const lcgaRow = tbl.insertRow();
+    lcgaRow.insertCell().innerText = "LCGA";
+    lcgaRow.insertCell().innerText = data.lcga_best.toFixed(6);
+    lcgaRow.insertCell().innerText = data.lcga_time_sec;
+    lcgaRow.insertCell().innerText = `${lcgaConvergenceGens} gens`;
+    
+    const improvementText = data.improvement_percent === null ? "N/A" : 
+      (data.improvement_percent > 0 ? "+" + data.improvement_percent + "%" : data.improvement_percent + "%");
+    
+    const improvementMsg = data.improvement_percent === null ? 
+      "Improvement: Cannot calculate" : 
+      `Improvement: ${data.improvement_percent > 0 ? '+' : ''}${data.improvement_percent}%`;
+    
+    // Add convergence analysis
+    let convergenceAnalysis = "";
+    if (gaConvergenceGens !== 'N/A' && lcgaConvergenceGens !== 'N/A') {
+      const convergenceImprovement = ((gaConvergenceGens - lcgaConvergenceGens) / gaConvergenceGens * 100).toFixed(1);
+      convergenceAnalysis = `<br>Convergence Speed: LCGA reached target ${convergenceImprovement}% faster than GA`;
+    }
+    
+    document.getElementById("improve").innerHTML = improvementMsg + convergenceAnalysis;
     
     const layout = { 
-      title: `${func} Function — Convergence Comparison<br><sub>GA: ${gaConvergence || 'N/A'} gens to target | LCGA: ${lcgaConvergence || 'N/A'} gens to target</sub>`,
+      title: `${func} Function — Convergence Comparison<br><sub>GA: ${gaConvergenceGens} gens to target | LCGA: ${lcgaConvergenceGens} gens to target</sub>`,
       xaxis: {title: 'Generation'},
       yaxis: {title: 'Best Fitness', rangemode: 'tozero'},
       margin: {l: 60, r: 30, t: 80, b: 50},
