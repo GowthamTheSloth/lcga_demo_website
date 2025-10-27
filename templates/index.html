@@ -131,7 +131,23 @@ document.getElementById("runBtn").onclick = async function(){
     
     // Calculate convergence metrics FIRST
     const bestFitness = Math.min(...ga_y, ...lcga_y);
-    const targetFitness = bestFitness * 1.1; // 10% above best
+    
+    // Use a more adaptive target based on the function type and convergence pattern
+    let targetFitness;
+    const initialFitness = Math.max(...ga_y, ...lcga_y); // Worst fitness at start
+    const improvementRange = initialFitness - bestFitness;
+    
+    if (bestFitness < 1) {
+      // For functions that converge close to zero (Sphere, some Ackley cases)
+      targetFitness = bestFitness * 1.1;
+    } else if (improvementRange > 50) {
+      // For functions with large improvement potential (Rastrigin, Rosenbrock)
+      targetFitness = bestFitness + (improvementRange * 0.1); // 10% of improvement range
+    } else {
+      // For moderate cases
+      targetFitness = bestFitness * 1.2;
+    }
+    
     const gaConvergence = ga_y.findIndex(f => f <= targetFitness);
     const lcgaConvergence = lcga_y.findIndex(f => f <= targetFitness);
     
