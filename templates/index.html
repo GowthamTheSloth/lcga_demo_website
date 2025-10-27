@@ -73,7 +73,7 @@
     </div>
     
     <div class="plot-container">
-      <h3>LCGA Population Dynamics</h3>
+      <h3>Population Dynamics Comparison</h3>
       <div id="dynamics-plot"></div>
     </div>
     
@@ -229,38 +229,54 @@ document.getElementById("runBtn").onclick = async function(){
     
     Plotly.newPlot('plot', [trace1, trace2], layout, {responsive: true});
     
-    // Create LCGA dynamics plot (diversity and age)
-    if (data.lcga_diversity_history && data.lcga_age_history) {
-      const diversityTrace = {
+    // Create population dynamics comparison plot
+    if (data.ga_diversity_history && data.lcga_diversity_history) {
+      const gaDiversityTrace = {
         x: x,
-        y: data.lcga_diversity_history,
-        name: 'Population Diversity',
+        y: data.ga_diversity_history,
+        name: 'GA Diversity',
         mode: 'lines+markers',
-        line: {color: '#e74c3c', width: 2},
+        line: {color: '#1f77b4', width: 2},
         marker: {size: 4},
         yaxis: 'y'
       };
       
-      const ageTrace = {
+      const lcgaDiversityTrace = {
         x: x,
-        y: data.lcga_age_history,
-        name: 'Mean Age',
+        y: data.lcga_diversity_history,
+        name: 'LCGA Diversity',
         mode: 'lines+markers',
-        line: {color: '#9b59b6', width: 2},
+        line: {color: '#ff7f0e', width: 2},
         marker: {size: 4},
-        yaxis: 'y2'
+        yaxis: 'y'
       };
       
+      const traces = [gaDiversityTrace, lcgaDiversityTrace];
+      
+      // Add LCGA age trace if available
+      if (data.lcga_age_history) {
+        const ageTrace = {
+          x: x,
+          y: data.lcga_age_history,
+          name: 'LCGA Mean Age',
+          mode: 'lines+markers',
+          line: {color: '#9b59b6', width: 2, dash: 'dash'},
+          marker: {size: 4},
+          yaxis: 'y2'
+        };
+        traces.push(ageTrace);
+      }
+      
       const dynamicsLayout = {
-        title: 'LCGA Population Dynamics Over Generations',
+        title: 'Population Dynamics Comparison Over Generations',
         xaxis: {title: 'Generation'},
         yaxis: {
           title: 'Population Diversity (Fitness Std Dev)',
           side: 'left',
-          color: '#e74c3c'
+          color: '#2c3e50'
         },
         yaxis2: {
-          title: 'Mean Age',
+          title: 'Mean Age (LCGA only)',
           side: 'right',
           overlaying: 'y',
           color: '#9b59b6'
@@ -271,7 +287,7 @@ document.getElementById("runBtn").onclick = async function(){
         paper_bgcolor: 'rgba(0,0,0,0)'
       };
       
-      Plotly.newPlot('dynamics-plot', [diversityTrace, ageTrace], dynamicsLayout, {responsive: true});
+      Plotly.newPlot('dynamics-plot', traces, dynamicsLayout, {responsive: true});
     }
     
     // Show raw data

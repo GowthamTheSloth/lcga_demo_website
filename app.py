@@ -75,6 +75,7 @@ def run():
             "improvement_percent": None if improvement is None else round(improvement, 3),
             "ga_history": ga_res["history"],
             "lcga_history": lcga_res["history"],
+            "ga_diversity_history": ga_res.get("diversity_history", []),
             "lcga_diversity_history": lcga_res.get("diversity_history", []),
             "lcga_age_history": lcga_res.get("age_history", []),
             "ga_time_sec": round(t_ga, 3),
