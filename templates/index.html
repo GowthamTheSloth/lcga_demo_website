@@ -55,11 +55,16 @@
       <div class="summary-content">
         <table id="summaryTable">
           <thead>
-            <tr><th>Algorithm</th><th>Best Fitness</th><th>Time (s)</th><th>Performance</th></tr>
+            <tr><th>Algorithm</th><th>Best Fitness</th><th>Time (s)</th><th>Convergence</th></tr>
           </thead>
           <tbody></tbody>
         </table>
         <div id="improve" class="improvement"></div>
+        <div class="analysis-note">
+          <strong>Analysis:</strong> LCGA typically finds better solutions in fewer generations (optimization efficiency) 
+          but may take longer per generation (computational overhead). This demonstrates the trade-off between 
+          solution quality and computational cost.
+        </div>
       </div>
     </div>
 
@@ -128,21 +133,29 @@ document.getElementById("runBtn").onclick = async function(){
     gaRow.insertCell().innerText = "GA";
     gaRow.insertCell().innerText = data.ga_best.toFixed(6);
     gaRow.insertCell().innerText = data.ga_time_sec;
-    gaRow.insertCell().innerText = "Baseline";
+    gaRow.insertCell().innerText = `${gaConvergence || 'N/A'} gens`;
     
     const lcgaRow = tbl.insertRow();
     lcgaRow.insertCell().innerText = "LCGA";
     lcgaRow.insertCell().innerText = data.lcga_best.toFixed(6);
     lcgaRow.insertCell().innerText = data.lcga_time_sec;
+    lcgaRow.insertCell().innerText = `${lcgaConvergence || 'N/A'} gens`;
     
     const improvementText = data.improvement_percent === null ? "N/A" : 
       (data.improvement_percent > 0 ? "+" + data.improvement_percent + "%" : data.improvement_percent + "%");
-    lcgaRow.insertCell().innerText = improvementText;
     
     const improvementMsg = data.improvement_percent === null ? 
       "Improvement: Cannot calculate" : 
       `Improvement: ${data.improvement_percent > 0 ? '+' : ''}${data.improvement_percent}%`;
-    document.getElementById("improve").innerText = improvementMsg;
+    
+    // Add convergence analysis
+    let convergenceAnalysis = "";
+    if (gaConvergence && lcgaConvergence) {
+      const convergenceImprovement = ((gaConvergence - lcgaConvergence) / gaConvergence * 100).toFixed(1);
+      convergenceAnalysis = `<br>Convergence Speed: LCGA reached target ${convergenceImprovement}% faster than GA`;
+    }
+    
+    document.getElementById("improve").innerHTML = improvementMsg + convergenceAnalysis;
 
     // Plot histories
     const ga_y = data.ga_history;
@@ -166,14 +179,26 @@ document.getElementById("runBtn").onclick = async function(){
       marker: {size: 4}
     };
     
+    // Calculate convergence metrics
+    const targetFitness = Math.min(...ga_y, ...lcga_y) * 1.1; // 10% above best
+    const gaConvergence = ga_y.findIndex(f => f <= targetFitness) + 1;
+    const lcgaConvergence = lcga_y.findIndex(f => f <= targetFitness) + 1;
+    
     const layout = { 
-      title: `${func} Function — Best Fitness per Generation`,
+      title: `${func} Function — Convergence Comparison<br><sub>GA: ${gaConvergence || 'N/A'} gens to target | LCGA: ${lcgaConvergence || 'N/A'} gens to target</sub>`,
       xaxis: {title: 'Generation'},
       yaxis: {title: 'Best Fitness', rangemode: 'tozero'},
-      margin: {l: 60, r: 30, t: 60, b: 50},
+      margin: {l: 60, r: 30, t: 80, b: 50},
       legend: {x: 0.02, y: 0.98},
       plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)'
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      shapes: [{
+        type: 'line',
+        x0: 0, x1: Math.max(ga_y.length, lcga_y.length),
+        y0: targetFitness, y1: targetFitness,
+        line: {color: 'red', width: 1, dash: 'dot'},
+        opacity: 0.5
+      }]
     };
     
     Plotly.newPlot('plot', [trace1, trace2], layout, {responsive: true});

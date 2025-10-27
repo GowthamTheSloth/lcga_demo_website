@@ -194,6 +194,16 @@ h1 {
   padding: 10px 0;
 }
 
+.analysis-note {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1565c0;
+}
+
 .plot-container {
   background: white;
   padding: 20px;
