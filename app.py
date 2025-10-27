@@ -64,7 +64,7 @@ def run():
 
         improvement = None
         try:
-            improvement = 100.0 * (ga_res["best_fitness"] - lcga_res["best_fitness"]) / max(1e-12, abs(ga_res["best_fitness"]))
+            improvement = 100.0 * (lcga_res["best_fitness"] - ga_res["best_fitness"]) / max(1e-12, abs(ga_res["best_fitness"]))
         except Exception:
             improvement = None
 
