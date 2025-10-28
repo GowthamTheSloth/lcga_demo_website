@@ -27,6 +27,8 @@ class SimpleGA:
         self.age_history = []
         # Ages aligned with population
         self.ages = [0 for _ in range(self.pop_size)]
+        # Genotype diversity (mean per-gene std) per generation
+        self.genotype_diversity = []
 
     def _init_pop(self):
         self.population = [np.random.uniform(self.bounds[0], self.bounds[1], self.dim) for _ in range(self.pop_size)]
@@ -89,6 +91,14 @@ class SimpleGA:
             # Calculate and store mean age
             mean_age = float(np.mean(self.ages)) if len(self.ages) > 0 else 0.0
             self.age_history.append(mean_age)
+            # Calculate genotype diversity: mean per-gene std
+            if len(self.population) > 1:
+                chroms = np.array(self.population)
+                per_gene_std = np.std(chroms, axis=0)
+                geno_div = float(np.mean(per_gene_std))
+            else:
+                geno_div = 0.0
+            self.genotype_diversity.append(geno_div)
             
             # Print every 10 generations
             if (g + 1) % 10 == 0:
@@ -101,4 +111,5 @@ class SimpleGA:
                 "best_chrom": self.population[best_idx].tolist(),
                 "history": best_history,
                 "diversity_history": self.diversity_history,
-                "age_history": self.age_history}
+                "age_history": self.age_history,
+                "genotype_diversity": self.genotype_diversity}

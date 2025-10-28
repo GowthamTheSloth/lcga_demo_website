@@ -35,6 +35,7 @@ class LCGA:
         # Track diversity and age history
         self.diversity_history = []
         self.age_history = []
+        self.genotype_diversity = []
 
     def _init_population(self):
         pop = []
@@ -49,7 +50,9 @@ class LCGA:
 
     def _death_prob(self, age):
         # quadratic increasing death prob (paper-like)
-        return (age / max(1.0, self.max_age)) ** 2
+        base = (age / max(1.0, self.max_age))
+        # Soften early deaths to preserve diversity
+        return float(base ** 1.2) * 0.8
 
     def _select_parent(self, k=3):
         sample = random.sample(self.population, min(k, len(self.population)))
@@ -63,9 +66,13 @@ class LCGA:
         return LCGA.Individual(c1), LCGA.Individual(c2)
 
     def _mutate(self, ind):
+        # Age-adaptive mutation: boost for young individuals
+        mr = self.mr
+        if getattr(ind, 'age', 0) < self.maturity_age:
+            mr = min(1.0, mr * 1.8)
         for i in range(self.dim):
-            if random.random() < self.mr:
-                ind.chrom[i] += np.random.normal(0, 0.2)
+            if random.random() < mr:
+                ind.chrom[i] += np.random.normal(0, 0.3)
                 ind.chrom[i] = np.clip(ind.chrom[i], self.bounds[0], self.bounds[1])
         return ind
     
@@ -140,6 +147,17 @@ class LCGA:
             mean_age = self._calculate_mean_age()
             self.diversity_history.append(diversity)
             self.age_history.append(mean_age)
+            # Calculate genotype diversity: mean per-gene std
+            if len(self.population) > 0:
+                chroms = np.array([ind.chrom for ind in self.population])
+                if chroms.shape[0] > 1:
+                    per_gene_std = np.std(chroms, axis=0)
+                    geno_div = float(np.mean(per_gene_std))
+                else:
+                    geno_div = 0.0
+            else:
+                geno_div = 0.0
+            self.genotype_diversity.append(geno_div)
             
             # Print every 10 generations
             if (step + 1) % 10 == 0:
@@ -154,4 +172,5 @@ class LCGA:
                 "best_chrom": best.chrom.tolist(),
                 "history": best_history,
                 "diversity_history": self.diversity_history,
-                "age_history": self.age_history}
+                "age_history": self.age_history,
+                "genotype_diversity": self.genotype_diversity}

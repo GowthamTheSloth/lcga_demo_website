@@ -79,6 +79,8 @@ def run():
             "lcga_diversity_history": lcga_res.get("diversity_history", []),
             "lcga_age_history": lcga_res.get("age_history", []),
             "ga_age_history": ga_res.get("age_history", []),
+            "ga_genotype_diversity": ga_res.get("genotype_diversity", []),
+            "lcga_genotype_diversity": lcga_res.get("genotype_diversity", []),
             "ga_time_sec": round(t_ga, 3),
             "lcga_time_sec": round(t_lcga, 3),
             "parameters": {

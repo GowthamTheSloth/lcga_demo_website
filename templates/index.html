@@ -280,12 +280,35 @@ document.getElementById("runBtn").onclick = async function(){
         };
         traces.push(gaAgeTrace);
       }
+
+      // Add genotype diversity traces (mean per-gene std) on y3
+      if (data.ga_genotype_diversity && data.lcga_genotype_diversity) {
+        const gaGenoTrace = {
+          x: x,
+          y: data.ga_genotype_diversity,
+          name: 'GA Genotype Diversity',
+          mode: 'lines+markers',
+          line: {color: '#2ecc71', width: 2},
+          marker: {size: 4},
+          yaxis: 'y3'
+        };
+        const lcgaGenoTrace = {
+          x: x,
+          y: data.lcga_genotype_diversity,
+          name: 'LCGA Genotype Diversity',
+          mode: 'lines+markers',
+          line: {color: '#27ae60', width: 2, dash: 'dash'},
+          marker: {size: 4},
+          yaxis: 'y3'
+        };
+        traces.push(gaGenoTrace, lcgaGenoTrace);
+      }
       
       const dynamicsLayout = {
         title: 'Population Dynamics Comparison Over Generations',
         xaxis: {title: 'Generation'},
         yaxis: {
-          title: 'Population Diversity (Fitness Std Dev)',
+          title: 'Fitness Diversity (Std Dev)',
           side: 'left',
           color: '#2c3e50'
         },
@@ -294,6 +317,14 @@ document.getElementById("runBtn").onclick = async function(){
           side: 'right',
           overlaying: 'y',
           color: '#9b59b6'
+        },
+        yaxis3: {
+          title: 'Genotype Diversity (Mean per-gene Std)',
+          side: 'right',
+          overlaying: 'y',
+          anchor: 'free',
+          position: 0.95,
+          color: '#27ae60'
         },
         margin: {l: 60, r: 60, t: 60, b: 50},
         legend: {x: 0.02, y: 0.98},
