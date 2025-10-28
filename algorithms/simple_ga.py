@@ -23,6 +23,10 @@ class SimpleGA:
         
         # Track diversity history
         self.diversity_history = []
+        # Track mean age history
+        self.age_history = []
+        # Ages aligned with population
+        self.ages = [0 for _ in range(self.pop_size)]
 
     def _init_pop(self):
         self.population = [np.random.uniform(self.bounds[0], self.bounds[1], self.dim) for _ in range(self.pop_size)]
@@ -56,7 +60,13 @@ class SimpleGA:
     def run(self):
         best_history = []
         for g in range(self.gen):
-            new_pop = []
+            # Elitism: carry over best individual with age increment
+            best_idx_current = int(np.argmin(self.fitness))
+            elite = self.population[best_idx_current].copy()
+            elite_age = self.ages[best_idx_current] + 1
+
+            new_pop = [elite]
+            new_ages = [elite_age]
             while len(new_pop) < self.pop_size:
                 p1 = self._tournament()
                 p2 = self._tournament()
@@ -65,14 +75,20 @@ class SimpleGA:
                 else:
                     c1, c2 = p1.copy(), p2.copy()
                 new_pop.append(self._mutate(c1))
+                new_ages.append(0)
                 if len(new_pop) < self.pop_size:
                     new_pop.append(self._mutate(c2))
+                    new_ages.append(0)
             self.population = new_pop
+            self.ages = new_ages
             self.fitness = [self.func(ind) for ind in self.population]
             
             # Calculate and store diversity
             diversity = self._calculate_diversity()
             self.diversity_history.append(diversity)
+            # Calculate and store mean age
+            mean_age = float(np.mean(self.ages)) if len(self.ages) > 0 else 0.0
+            self.age_history.append(mean_age)
             
             # Print every 10 generations
             if (g + 1) % 10 == 0:
@@ -84,4 +100,5 @@ class SimpleGA:
         return {"best_fitness": float(self.fitness[best_idx]),
                 "best_chrom": self.population[best_idx].tolist(),
                 "history": best_history,
-                "diversity_history": self.diversity_history}
+                "diversity_history": self.diversity_history,
+                "age_history": self.age_history}

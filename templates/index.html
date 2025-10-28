@@ -267,6 +267,20 @@ document.getElementById("runBtn").onclick = async function(){
         traces.push(ageTrace);
       }
       
+      // Add GA age trace if available
+      if (data.ga_age_history) {
+        const gaAgeTrace = {
+          x: x,
+          y: data.ga_age_history,
+          name: 'GA Mean Age',
+          mode: 'lines+markers',
+          line: {color: '#6c5ce7', width: 2, dash: 'dot'},
+          marker: {size: 4},
+          yaxis: 'y2'
+        };
+        traces.push(gaAgeTrace);
+      }
+      
       const dynamicsLayout = {
         title: 'Population Dynamics Comparison Over Generations',
         xaxis: {title: 'Generation'},
@@ -276,7 +290,7 @@ document.getElementById("runBtn").onclick = async function(){
           color: '#2c3e50'
         },
         yaxis2: {
-          title: 'Mean Age (LCGA only)',
+          title: 'Mean Age',
           side: 'right',
           overlaying: 'y',
           color: '#9b59b6'
