@@ -2,6 +2,8 @@
 from flask import Flask, render_template, request, jsonify
 from algorithms.simple_ga import SimpleGA
 from algorithms.lcga import LCGA
+from algorithms.de import DifferentialEvolution
+from algorithms.pso import PSO
 from utils.benchmarks import FUNCTIONS
 import time
 import traceback
@@ -50,18 +52,70 @@ def run():
 
         func = FUNCTIONS[func_name]
 
-        # Run baseline GA (fast)
+        # Collect results for all algorithms
+        algos = []
+
+        # GA
         ga = SimpleGA(func, dim=dim, pop_size=pop_size, generations=generations)
         t0 = time.time()
         ga_res = ga.run()
         t_ga = time.time() - t0
+        algos.append({
+            "name": "GA",
+            "best_fitness": ga_res["best_fitness"],
+            "time_sec": round(t_ga, 3),
+            "history": ga_res["history"],
+            "diversity_history": ga_res.get("diversity_history", []),
+            "age_history": ga_res.get("age_history", []),
+            "genotype_diversity": ga_res.get("genotype_diversity", []),
+        })
 
-        # Run LCGA
+        # LCGA
         lcga = LCGA(func, dim=dim, pop_size=pop_size, generations=generations)
         t0 = time.time()
         lcga_res = lcga.run()
         t_lcga = time.time() - t0
+        algos.append({
+            "name": "LCGA",
+            "best_fitness": lcga_res["best_fitness"],
+            "time_sec": round(t_lcga, 3),
+            "history": lcga_res["history"],
+            "diversity_history": lcga_res.get("diversity_history", []),
+            "age_history": lcga_res.get("age_history", []),
+            "genotype_diversity": lcga_res.get("genotype_diversity", []),
+        })
 
+        # Differential Evolution (DE)
+        de = DifferentialEvolution(func, dim=dim, pop_size=pop_size, generations=generations)
+        t0 = time.time()
+        de_res = de.run()
+        t_de = time.time() - t0
+        algos.append({
+            "name": "DE",
+            "best_fitness": de_res["best_fitness"],
+            "time_sec": round(t_de, 3),
+            "history": de_res["history"],
+            "diversity_history": de_res.get("diversity_history", []),
+            "age_history": de_res.get("age_history", []),
+            "genotype_diversity": de_res.get("genotype_diversity", []),
+        })
+
+        # Particle Swarm Optimization (PSO)
+        pso = PSO(func, dim=dim, pop_size=pop_size, generations=generations)
+        t0 = time.time()
+        pso_res = pso.run()
+        t_pso = time.time() - t0
+        algos.append({
+            "name": "PSO",
+            "best_fitness": pso_res["best_fitness"],
+            "time_sec": round(t_pso, 3),
+            "history": pso_res["history"],
+            "diversity_history": pso_res.get("diversity_history", []),
+            "age_history": pso_res.get("age_history", []),
+            "genotype_diversity": pso_res.get("genotype_diversity", []),
+        })
+
+        # Back-compat improvement percent (LCGA vs GA)
         improvement = None
         try:
             improvement = 100.0 * (lcga_res["best_fitness"] - ga_res["best_fitness"]) / max(1e-12, abs(ga_res["best_fitness"]))
@@ -70,19 +124,8 @@ def run():
 
         res = {
             "function": func_name,
-            "ga_best": ga_res["best_fitness"],
-            "lcga_best": lcga_res["best_fitness"],
+            "algorithms": algos,
             "improvement_percent": None if improvement is None else round(improvement, 3),
-            "ga_history": ga_res["history"],
-            "lcga_history": lcga_res["history"],
-            "ga_diversity_history": ga_res.get("diversity_history", []),
-            "lcga_diversity_history": lcga_res.get("diversity_history", []),
-            "lcga_age_history": lcga_res.get("age_history", []),
-            "ga_age_history": ga_res.get("age_history", []),
-            "ga_genotype_diversity": ga_res.get("genotype_diversity", []),
-            "lcga_genotype_diversity": lcga_res.get("genotype_diversity", []),
-            "ga_time_sec": round(t_ga, 3),
-            "lcga_time_sec": round(t_lcga, 3),
             "parameters": {
                 "dimension": dim,
                 "population_size": pop_size,
