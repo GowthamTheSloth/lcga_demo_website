@@ -23,7 +23,7 @@ class LCGA:
         self.population = [np.random.uniform(self.bounds[0], self.bounds[1], self.dim) for _ in range(self.pop_size)]
         self.fitness = [self.func(ind) for ind in self.population]
         self.ages = [0 for _ in range(self.pop_size)]
-        self.lifespans = [random.randint(8, 20) for _ in range(self.pop_size)]
+        self.lifespans = [random.randint(20, 40) for _ in range(self.pop_size)]
 
     def _stage(self, age, lifespan):
         if lifespan <= 0:
@@ -67,32 +67,44 @@ class LCGA:
         cr = self.cr
         mr = self.mr
         if si == "juvenile" or sj == "juvenile":
-            cr *= 0.8
-            mr *= 1.5
+            cr = min(1.0, cr * 1.1)
+            mr = min(1.0, mr * 1.8)
         if si == "adult" or sj == "adult":
-            cr *= 1.1
+            cr = min(1.0, cr * 1.05)
+            mr = min(1.0, mr * 1.0)
         if si == "senior" or sj == "senior":
-            mr *= 0.8
+            cr = min(1.0, cr * 0.9)
+            mr = min(1.0, mr * 0.7)
         return min(1.0, cr), min(1.0, mr)
+
+    def _stage_sigma(self, age, lifespan):
+        s = self._stage(age, lifespan)
+        if s == "juvenile":
+            return 0.35
+        if s == "adult":
+            return 0.22
+        return 0.15
 
     def _calculate_diversity(self):
         if len(self.fitness) < 2:
             return 0.0
         return float(np.std(self.fitness))
 
-    def _apply_mortality(self, new_pop, new_ages, new_lifespans):
+    def _apply_mortality(self, new_pop, new_ages, new_lifespans, protect_k=2):
         survivors = []
         s_ages = []
         s_lifespans = []
-        for x, a, L in zip(new_pop, new_ages, new_lifespans):
+        for idx, (x, a, L) in enumerate(zip(new_pop, new_ages, new_lifespans)):
             dead = a >= L
-            if not dead and self._stage(a, L) == "senior" and random.random() < 0.25:
+            if idx < protect_k:
+                dead = False
+            if not dead and self._stage(a, L) == "senior" and random.random() < 0.1:
                 dead = True
             if dead:
                 nx = np.random.uniform(self.bounds[0], self.bounds[1], self.dim)
                 survivors.append(nx)
                 s_ages.append(0)
-                s_lifespans.append(random.randint(8, 20))
+                s_lifespans.append(random.randint(20, 40))
             else:
                 survivors.append(x)
                 s_ages.append(a)
@@ -102,14 +114,18 @@ class LCGA:
     def run(self):
         history = []
         for g in range(self.gen):
-            best_idx = int(np.argmin(self.fitness))
-            elite = self.population[best_idx].copy()
-            elite_age = self.ages[best_idx] + 1
-            elite_L = self.lifespans[best_idx]
+            # carry two elites
+            sorted_idx = list(np.argsort(self.fitness))
+            elite1 = self.population[sorted_idx[0]].copy()
+            elite2 = self.population[sorted_idx[1]].copy() if len(sorted_idx) > 1 else self.population[sorted_idx[0]].copy()
+            e1_age = self.ages[sorted_idx[0]] + 1
+            e2_age = (self.ages[sorted_idx[1]] + 1) if len(sorted_idx) > 1 else (self.ages[sorted_idx[0]] + 1)
+            e1_L = self.lifespans[sorted_idx[0]]
+            e2_L = self.lifespans[sorted_idx[1]] if len(sorted_idx) > 1 else self.lifespans[sorted_idx[0]]
 
-            new_pop = [elite]
-            new_ages = [elite_age]
-            new_Ls = [elite_L]
+            new_pop = [elite1, elite2]
+            new_ages = [e1_age, e2_age]
+            new_Ls = [e1_L, e2_L]
 
             while len(new_pop) < self.pop_size:
                 i = self._tournament_lifecycle()
@@ -128,8 +144,14 @@ class LCGA:
 
                 old_mr = self.mr
                 self.mr = base_mr
-                c1 = self._mutate(c1, sigma=0.25)
-                c2 = self._mutate(c2, sigma=0.25)
+                sig_i = self._stage_sigma(self.ages[i], self.lifespans[i])
+                sig_j = self._stage_sigma(self.ages[j], self.lifespans[j])
+                sigma_use = max(sig_i, sig_j)
+                # diversity-aware boost
+                if self.diversity_history[-1] if self.diversity_history else float('inf') < 1e-3:
+                    sigma_use *= 1.5
+                c1 = self._mutate(c1, sigma=sigma_use)
+                c2 = self._mutate(c2, sigma=sigma_use)
                 self.mr = old_mr
 
                 new_pop.append(c1)
@@ -140,7 +162,7 @@ class LCGA:
                     new_ages.append(0)
                     new_Ls.append(random.randint(8, 20))
 
-            new_pop, new_ages, new_Ls = self._apply_mortality(new_pop, new_ages, new_Ls)
+            new_pop, new_ages, new_Ls = self._apply_mortality(new_pop, new_ages, new_Ls, protect_k=2)
 
             self.population = new_pop
             self.ages = [a + 1 for a in new_ages]

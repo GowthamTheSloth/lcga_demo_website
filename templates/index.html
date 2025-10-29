@@ -55,7 +55,7 @@
       <div class="summary-content">
         <table id="summaryTable">
           <thead>
-            <tr><th>Algorithm</th><th>Best Fitness</th><th>Time (s)</th><th>Convergence</th></tr>
+            <tr><th>Algorithm</th><th>Best Fitness</th><th>Time (s)</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -134,19 +134,9 @@ document.getElementById("runBtn").onclick = async function(){
     const longest = Math.max(...algos.map(a => (a.history || []).length));
     const x = Array.from({length: longest}, (_,i)=>i+1);
 
-    // Compute global best and ranges across all algos for adaptive target
+    // Compute global best (for title context only)
     const allVals = algos.flatMap(a => a.history || []);
     const bestFitness = Math.min(...allVals);
-    const initialFitness = Math.max(...allVals);
-    const improvementRange = initialFitness - bestFitness;
-    let targetFitness;
-    if (bestFitness < 1) {
-      targetFitness = bestFitness * 1.1;
-    } else if (improvementRange > 50) {
-      targetFitness = bestFitness + (improvementRange * 0.1);
-    } else {
-      targetFitness = bestFitness * 1.2;
-    }
 
     // Color map for consistency
     const palette = {
@@ -170,52 +160,24 @@ document.getElementById("runBtn").onclick = async function(){
     const tbl = document.getElementById("summaryTable").querySelector("tbody");
     tbl.innerHTML = "";
 
-    // Compute per-algorithm convergence
-    const convergence = {};
-    algos.forEach(a => {
-      const idx = (a.history || []).findIndex(f => f <= targetFitness);
-      convergence[a.name] = idx >= 0 ? idx + 1 : 'N/A';
-    });
-
-    // Fill table rows
+    // Fill table rows (without convergence)
     algos.forEach(a => {
       const row = tbl.insertRow();
       row.insertCell().innerText = a.name;
       row.insertCell().innerText = (a.best_fitness != null ? Number(a.best_fitness).toFixed(6) : '');
       row.insertCell().innerText = a.time_sec != null ? a.time_sec : '';
-      row.insertCell().innerText = `${convergence[a.name]} gens`;
     });
     
-    const improvementMsg = data.improvement_percent === null ? 
-      "Improvement: Cannot calculate" : 
-      `Improvement: ${data.improvement_percent > 0 ? '+' : ''}${data.improvement_percent}%`;
-    
-    // Add convergence analysis (LCGA vs GA if both available)
-    let convergenceAnalysis = "";
-    const gaConv = convergence['GA'];
-    const lcgaConv = convergence['LCGA'];
-    if (gaConv !== undefined && lcgaConv !== undefined && gaConv !== 'N/A' && lcgaConv !== 'N/A') {
-      const convergenceImprovement = ((gaConv - lcgaConv) / gaConv * 100).toFixed(1);
-      convergenceAnalysis = `<br>Convergence Speed: LCGA reached target ${convergenceImprovement}% faster than GA`;
-    }
-    
-    document.getElementById("improve").innerHTML = improvementMsg + convergenceAnalysis;
+    document.getElementById("improve").innerHTML = '';
     
     const layout = { 
-      title: `${func} Function — Convergence Comparison`,
+      title: `${func} Function — Comparison`,
       xaxis: {title: 'Generation'},
       yaxis: {title: 'Best Fitness', rangemode: 'tozero'},
       margin: {l: 60, r: 180, t: 80, b: 60},
       legend: {x: 1.02, y: 1, yanchor: 'top'},
       plot_bgcolor: 'rgba(0,0,0,0)',
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      shapes: [{
-        type: 'line',
-        x0: 0, x1: longest,
-        y0: targetFitness, y1: targetFitness,
-        line: {color: 'red', width: 1, dash: 'dot'},
-        opacity: 0.5
-      }]
+      paper_bgcolor: 'rgba(0,0,0,0)'
     };
     
     Plotly.newPlot('plot', traces, layout, {responsive: true});
